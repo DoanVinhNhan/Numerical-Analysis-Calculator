@@ -4,6 +4,7 @@ import customtkinter as ctk
 from sympy import *
 import pandas as pd
 from equation_solving_method.Bisection import bisection_oop
+
 # Initialize the application
 ctk.set_appearance_mode("System")  # Modes: "System" (default), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (default), "green", "dark-blue"
@@ -12,6 +13,7 @@ root = ctk.CTk()
 root.title("Numerical Analysis Calculator")
 root.geometry("800x600")
 root.resizable(False, False)
+
 
 # Function to switch frames
 def switch_frame(new_frame):
@@ -104,13 +106,14 @@ def bisection_frame():
     selected_option = ctk.StringVar()
     option_num_input = ctk.StringVar()
 
+    
     f_input = ctk.CTkEntry(root, width=400, height = 30, textvariable=f_str)
     f_label = ctk.CTkLabel(root, text = "f(x) = ", font = ("Arial",16))
     a_input = ctk.CTkEntry(root, width=60, height = 30, textvariable=a_str)
     a_label = ctk.CTkLabel(root, text = "a = ", font = ("Arial",16))
     b_input = ctk.CTkEntry(root, width=60, height = 30, textvariable=b_str)
     b_label = ctk.CTkLabel(root, text = "b = ", font = ("Arial",16))
-
+    
     selected_option.set("Sai số tuyệt đối")
     options_label = ctk.CTkLabel(root, text = "Option:")
     options = ["Sai số tuyệt đối", "Sai số tương đối", "Cho trước số lần lặp"]
@@ -123,7 +126,7 @@ def bisection_frame():
     delta_label = ctk.CTkLabel(root, text="\u03B4 = ", font = ("Arial", 16))
     n_label = ctk.CTkLabel(root, text = "n = ", font = ("Arial", 16))
     option_num_input = ctk.CTkEntry(root, width=60, height = 30)
-    
+
     #Change Option
     def on_option_change(*args):
 
@@ -158,16 +161,18 @@ def bisection_frame():
     on_option_change()
 
     def solve():
-        f = f_str.get()
+        x = symbols("x")
+        expr = f_str.get()
+        f = lambdify(x, expr, 'math')
         a = sympify(a_str.get())
         b = sympify(b_str.get())
         option = selected_option.get()
         option_num = sympify(option_num_input.get())
-        
-        uu = bisection_oop(a,b,option_num,f)
+
+        uu = bisection_oop(a,b,option,option_num,f)
         df, notice, result = uu.Solve()
         df = df.apply(lambda col: col.map(lambda x: float(x)))
-
+        
         notice_label = tk.Label(root, text=f"Phương pháp Chia đôi kết thúc sau {notice} lần lặp")
         result_label = tk.Label(root, text=f"Nghiệm x = {float(result)}")
         tree = dataframe_to_treeview(df, root)

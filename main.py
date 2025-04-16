@@ -41,14 +41,12 @@ def dataframe_to_treeview(df, root):
     tree.column("#0", width =30) 
 
     scrollbar_y = tk.Scrollbar(root, orient="vertical", command=tree.yview)
-    scrollbar_y.pack(side="right", fill="y")
     tree.configure(yscrollcommand=scrollbar_y.set)
 
     scrollbar_x = tk.Scrollbar(root, orient="horizontal", command=tree.xview)
-    scrollbar_x.pack(side="bottom", fill="x")
     tree.configure(xscrollcommand=scrollbar_x.set)
 
-    return tree
+    return tree,scrollbar_x,scrollbar_y
 
 # Main frame
 def main_frame():
@@ -113,6 +111,15 @@ def bisection_frame():
     a_label = ctk.CTkLabel(root, text = "a = ", font = ("Arial",16))
     b_input = ctk.CTkEntry(root, width=60, height = 30, textvariable=b_str)
     b_label = ctk.CTkLabel(root, text = "b = ", font = ("Arial",16))
+    error_input_label = ctk.CTkLabel(root, text = "Đầu vào không hợp lệ!", text_color = "red")
+    except_error_label = ctk.CTkLabel(root, text = "Lỗi!", text_color = "red")
+    
+    global notice_label, result_label, tree, scrollbar_x, scrollbar_y
+    notice_label = tk.Label(root)
+    result_label = tk.Label(root)
+    tree = ttk.Treeview(root)
+    scrollbar_x = tk.Scrollbar(root)
+    scrollbar_y = tk.Scrollbar(root)
     
     selected_option.set("Sai số tuyệt đối")
     options_label = ctk.CTkLabel(root, text = "Option:")
@@ -161,26 +168,42 @@ def bisection_frame():
     on_option_change()
 
     def solve():
-        x = symbols("x")
-        expr = f_str.get()
-        f = lambdify(x, expr, 'math')
-        a = sympify(a_str.get())
-        b = sympify(b_str.get())
-        option = selected_option.get()
-        option_num = sympify(option_num_input.get())
-
-        uu = bisection_oop(a,b,option,option_num,f)
-        df, notice, result = uu.Solve()
-        df = df.apply(lambda col: col.map(lambda x: float(x)))
-        
-        notice_label = tk.Label(root, text=f"Phương pháp Chia đôi kết thúc sau {notice} lần lặp")
-        result_label = tk.Label(root, text=f"Nghiệm x = {float(result)}")
-        tree = dataframe_to_treeview(df, root)
-
-        notice_label.place(x=30,y=250)
-        result_label.place(x=30,y=280)
-        tree.pack(expand=True, fill="x")
-        
+        global notice_label, result_label, tree, scrollbar_x, scrollbar_y
+        error_input_label.place_forget()
+        except_error_label.place_forget()
+        notice_label.place_forget()
+        result_label.place_forget()
+        tree.destroy()
+        scrollbar_x.destroy()
+        scrollbar_y.destroy()
+        try:
+            x = symbols("x")
+            expr = f_str.get()
+            f = lambdify(x, expr, 'math')
+            a = sympify(a_str.get())
+            b = sympify(b_str.get())
+            option = selected_option.get()
+            option_num = sympify(option_num_input.get())
+    
+            if a>=b or f(a)*f(b)>0 or(option == "Cho trước số lần lặp" and (option_num!=int(option_num)or option_num<=0)):
+                error_input_label.place(x=30, y=250)
+                return
+            uu = bisection_oop(a,b,option,option_num,f)
+            df, notice, result = uu.Solve()
+            df = df.apply(lambda col: col.map(lambda x: float(x)))
+            
+            notice_label = tk.Label(root, text=f"Phương pháp Chia đôi kết thúc sau {notice} lần lặp")
+            result_label = tk.Label(root, text=f"Nghiệm x = {float(result)}")
+            tree, scrollbar_x, scrollbar_y = dataframe_to_treeview(df, root)
+    
+            notice_label.place(x=30,y=250)
+            result_label.place(x=30,y=280)
+            tree.pack(expand=True, fill="x")
+            scrollbar_x.pack(side="bottom", fill="x")
+            scrollbar_y.pack(side="right", fill="y")
+        except:
+            except_error_label.place(x=30,y=250)
+            
     solve_button = tk.Button(root, text = "Giải", command = solve)
     solve_button.pack(pady = 100)
 

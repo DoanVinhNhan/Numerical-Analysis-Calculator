@@ -5,7 +5,7 @@ from sympy import *
 import pandas as pd
 from frame_lib import *
 from PIL import Image
-from equation_solving_method.Bisection import bisection_oop
+from equationMethods import bisection_oop, secant_oop
 
 root = ctk.CTk()
 root.title("Numerical Analysis Calculator")

@@ -228,3 +228,125 @@ class secant_oop:
                 return self.__secantMethodDelta1()
             else:
                 return self.__secantMethodDelta2()
+class newton1_oop:
+     def __init__(self,a_0, b_0, option, option_num, stop_condition, expr):
+        self.a_0 = a_0
+        self.b_0 = b_0
+        self.option = option
+        self.option_num = option_num
+        self.stop_condition = stop_condition
+        
+        x = symbols("x")
+        self.f = lambdify(x, expr, "math");
+        f1 = expr.diff(x)
+        f2 = f1.diff(x)
+        self.f1 = lambdify(x, f1, "math");
+        self.f2 = lambdify(x, f2, "math");
+
+        self.m1 =  min( abs(self.f1(self.a_0)), abs(self.f1(self.b_0)));
+        self.M2 =  max( abs(self.f2(self.a_0)), abs(self.f2(self.b_0)));
+        if(self.f2(self.a_0)*self.f(self.a_0) > 0): 
+            self.x_0 = a_0
+        else:
+            self.x_0 = b_0 
+     def __newton1MethodEpsilon1(self):
+        notice = 0
+        epsilon = self.option_num
+        de_0 = epsilon*self.m1
+        df = pd.DataFrame(columns = ["x_n", "|f(x_n)|"])
+        result = self.x_0
+        while True:
+            notice +=1
+            new_row = pd.DataFrame([{"x_n": result, "|f(x_n)|": abs(self.f(result))}])
+            if df.empty: df = new_row
+            else: df = pd.concat([df, new_row], ignore_index=True)
+            if(abs(self.f(result)) <= self.m1 * epsilon): break
+            result = result - self.f(result)/ self.f1(result)
+        return de_0, self.x_0, self.m1, self.M2, df, notice, result
+        
+     def __newton1MethodEpsilon2(self):
+        notice = 1
+        epsilon = self.option_num
+        de_0 = epsilon*2*self.m1/self.M2
+        result = self.x_0
+        
+        df = pd.DataFrame([{"x_n":result, "|x_n-x_n-1|²":"NaN"}])
+        if (self.f(result) == 0): return de_0, self.x_0, self.d, self.m1, self.M1, df, notice, result
+        while True:
+            notice+=1
+            result_prev = result
+            result = result - self.f(result)/ self.f1(result)
+            
+            new_row = pd.DataFrame([{"x_n": result, "|x_n-x_n-1|²": abs(result - result_prev)**2}])
+            if df.empty: df = new_row
+            else: df = pd.concat([df, new_row], ignore_index=True)
+            if(abs(result - result_prev)**2 <= epsilon*2*self.m1/self.M2): break
+        return de_0, self.x_0, self.m1, self.M2, df, notice, result
+        
+     def __newton1MethodDelta1(self):
+        notice = 0
+        delta = self.option_num
+        de_0 = delta*self.m1
+        df = pd.DataFrame(columns = ["x_n", "|f(x_n)|"])
+        result = self.x_0
+        while True:
+            notice +=1
+            new_row = pd.DataFrame([{"x_n": result, "|f(x_n)| / |x_n|": abs(self.f(result))/abs(result)}])
+            if df.empty: df = new_row
+            else: df = pd.concat([df, new_row], ignore_index=True)
+            if(abs(self.f(result)) <= self.m1 * delta*abs(result)): break
+            result = result - self.f(result)/ self.f1(result)
+        return de_0, self.x_0, self.m1, self.M2, df, notice, result
+        
+     def __newton1MethodDelta2(self):
+        notice = 1
+        delta = self.option_num
+        de_0 = delta*2*self.m1/self.M2
+        result = self.x_0
+        
+        df = pd.DataFrame([{"x_n":result, "|x_n-x_n-1|²/|x_n|":"NaN"}])
+        if (self.f(result) == 0): return de_0, self.x_0, self.d, self.m1, self.M1, df, notice, result
+        while True:
+            notice+=1
+            result_prev = result
+            result = result - self.f(result)/ self.f1(result)
+            
+            new_row = pd.DataFrame([{"x_n": result, "|x_n-x_n-1|²/|x_n|": abs(result - result_prev)**2/abs(result)}])
+            if df.empty: df = new_row
+            else: df = pd.concat([df, new_row], ignore_index=True)
+            if(abs(result - result_prev)**2 <= delta*2*self.m1/self.M2*abs(result)): break
+        return de_0, self.x_0, self.m1, self.M2, df, notice, result
+         
+     def __newton1MethodN(self):
+        notice = 1
+        n = self.option_num
+
+        result = self.x_0
+        df = pd.DataFrame([{"x_n":result, "|f(x_n)|": abs(self.f(result)), "|x_n-x_n-1|²":"NaN"}]) 
+        if (self.f(result) == 0): return None, self.x_0, self.m1, self.M2, df, notice, result
+            
+        for i in range(n-1):
+            notice +=1
+            result_prev = result
+            result = result - self.f(result)/ self.f1(result)
+            
+            new_row = pd.DataFrame([{"x_n": result, "|f(x_n)|": abs(self.f(result)), "|x_n-x_n-1|²": abs(result - result_prev)**2}])
+            if df.empty: df = new_row
+            else: df = pd.concat([df, new_row], ignore_index=True)
+                
+            if(self.f(result)==0): break
+        return None, self.x_0, self.m1, self.M2, df, notice, result
+        
+    
+     def Solve(self):
+        if self.option == "Cho trước số lần lặp": return self.__newton1MethodN()
+        if self.option == "Sai số tuyệt đối":
+            if self.stop_condition == "|xₙ - x*| ≤ |f(xₙ)| / m₁":
+                return self.__newton1MethodEpsilon1()
+            else:
+                return self.__newton1MethodEpsilon2()
+        else:
+            if self.stop_condition == "|xₙ - x*| ≤ M₂ |xₙ - xₙ₋₁|² / 2m₁ ":
+                return self.__newton1MethodDelta1()
+            else:
+                return self.__newton1MethodDelta2()        

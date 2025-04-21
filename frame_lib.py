@@ -4,7 +4,7 @@ import customtkinter as ctk
 from sympy import *
 import pandas as pd
 from PIL import Image
-from equationMethods import bisection_oop, secant_oop
+from equationMethods import bisection_oop, secant_oop, newton1_oop
 
 # Function to convert DataFrame to Treeview
 def dataframe_to_treeview(df, root):
@@ -89,7 +89,8 @@ class equation_frame(baseFrame):
                       frame_manager.switch_frame("bisection_frame"), width=400, height=60).place(x=200, y=100)
         ctk.CTkButton(self, text="Phương pháp dây cung",command = lambda:
                       frame_manager.switch_frame("secant_frame"), width=400, height=60).place(x=200, y=200)
-        ctk.CTkButton(self, text="Phương pháp tiếp tuyến", width=400, height=60).place(x=200, y=300)
+        ctk.CTkButton(self, text="Phương pháp tiếp tuyến",command = lambda:
+                      frame_manager.switch_frame("newton1_frame"), width=400, height=60).place(x=200, y=300)
         ctk.CTkButton(self, text="Phương pháp lặp đơn", width=400, height=60).place(x=200, y=400)
 class nonlinear_system_frame(baseFrame):
     def __init__(self, root, frame_manager):
@@ -271,6 +272,8 @@ class secant_frame(equationMethodBaseFrame):
                                                      button_hover_color="skyblue",
                                                      width=120)
         self.m1_M1_label = ctk.CTkLabel(self)
+        self.x_0_d_label = ctk.CTkLabel(self)
+        self.de0_label = ctk.CTkLabel(self)
         
         self.title_label.pack(pady=20)
         self.f_label.place(x=30, y=70)
@@ -316,42 +319,54 @@ class secant_frame(equationMethodBaseFrame):
             self.except_error_label.place_forget()
             self.notice_label.place_forget()
             self.m1_M1_label.place_forget()
+            self.x_0_d_label.place_forget()
+            self.de0_label.place_forget()
             self.result_label.place_forget()
             self.tree.destroy()
             self.scrollbar_x.destroy()
             self.scrollbar_y.destroy()
 
-            try:
-                expr = sympify(self.f_str.get())
-                a = sympify(self.a_str.get())
-                b = sympify(self.b_str.get())
-                option = self.selected_option.get()
-                option_num = sympify(self.option_num_input.get())
-                stop_condition = self.selected_stop_condition.get()
-    
-                if (a >= b or expr.subs("x",a)*expr.subs("x",b)>0 
-                or option_num<=0 or (option == "Cho trước số lần lặp" and option_num!=int(option_num))):
-                    self.error_input_label.place(x=30, y=250)
-                    return
-                uu = secant_oop(a, b, option, option_num, stop_condition, expr)
-                de_0, x_0, d, m1, M1, df, notice, result = uu.Solve()
-                df = df.apply(lambda col: col.map(lambda x: float(x)))
-                    
-                if option == "Sai số tuyệt đối": self.m1_M1_label = ctk.CTkLabel(self, text=f"Giá trị các hệ số : x_0 = {x_0}, d = {d}, m₁ = {m1}, M₁ = {M1}. Điều kiện dừng: eps_0 = {de_0}.")
-                if option == "Sai số tương đối": self.m1_M1_label = ctk.CTkLabel(self, text=f"Giá trị các hệ số : x_0 = {x_0}, d = {d}, m₁ = {m1}, M₁ = {M1}. Điều kiện dừng: delta_0 = {de_0}.")
-                if option == "Cho trước số lần lặp": self.m1_M1_label = ctk.CTkLabel(self, text=f"Giá trị các hệ số : x_0 = {x_0}, d = {d}, m₁ = {m1}, M₁ = {M1}.")
-                self.notice_label = ctk.CTkLabel(self, text=f"Phương pháp chia đôi kết thúc sau {notice} lần lặp")
-                self.result_label = ctk.CTkLabel(self, text=f"Nghiệm x = {float(result)}.")
-                self.tree, self.scrollbar_x, self.scrollbar_y = dataframe_to_treeview(df, self)
-    
-                self.m1_M1_label.place(x=30, y=220)
-                self.notice_label.place(x=30, y=250)
-                self.result_label.place(x=30, y=280)
-                self.tree.pack(expand=True, fill="x")
-                self.scrollbar_x.pack(side="bottom", fill="x")
-                self.scrollbar_y.pack(side="right", fill="y")
-            except: 
-                self.except_error_label.place(x=30, y=250)
+
+            expr = sympify(self.f_str.get())
+            a = sympify(self.a_str.get())
+            b = sympify(self.b_str.get())
+            option = self.selected_option.get()
+            option_num = sympify(self.option_num_input.get())
+            stop_condition = self.selected_stop_condition.get()
+
+            if (a >= b or expr.subs("x",a)*expr.subs("x",b)>0 
+            or option_num<=0 or (option == "Cho trước số lần lặp" and option_num!=int(option_num))):
+                self.error_input_label.place(x=30, y=250)
+                return
+            uu = secant_oop(a, b, option, option_num, stop_condition, expr)
+            de_0, x_0, d, m1, M1, df, notice, result = uu.Solve()
+            df = df.apply(lambda col: col.map(lambda x: float(x)))
+                
+            if option == "Sai số tuyệt đối": 
+                self.m1_M1_label = ctk.CTkLabel(self, text=f"Giá trị các hệ số : m₁ = {m1}, M₁ = {M1}.")
+                self.x_0_d_label = ctk.CTkLabel(self, text=f"x_0 = {x_0}, d = {d}.")
+                self.de0_label =  ctk.CTkLabel(self, text=f"Điều kiện dừng: eps_0 = {de_0}.")
+            if option == "Sai số tương đối": 
+                self.m1_M1_label = ctk.CTkLabel(self, text=f"Giá trị các hệ số : m₁ = {m1}, M₁ = {M1}.")
+                self.x_0_d_label = ctk.CTkLabel(self, text=f"x_0 = {x_0}, d = {d}.")
+                self.de0_label =  ctk.CTkLabel(self, text=f"Điều kiện dừng: delta_0 = {de_0}.")
+            if option == "Cho trước số lần lặp": 
+                self.m1_M1_label = ctk.CTkLabel(self, text=f"Giá trị các hệ số : m₁ = {m1}, M₁ = {M1}.")
+                self.x_0_d_label = ctk.CTkLabel(self, text=f"x_0 = {x_0}, d = {d}.")
+            self.notice_label = ctk.CTkLabel(self, text=f"Phương pháp dây cung kết thúc sau {notice} lần lặp")
+            self.result_label = ctk.CTkLabel(self, text=f"Nghiệm x = {float(result)}.")
+            self.tree, self.scrollbar_x, self.scrollbar_y = dataframe_to_treeview(df, self)
+
+            self.m1_M1_label.place(x=30, y=200)
+            self.x_0_d_label.place(x=30, y=225)
+            if option!="Cho trước số lần lặp": self.de0_label.place(x=30, y=250)
+            self.notice_label.place(x=30, y=275)
+            self.result_label.place(x=30, y=300)
+            self.tree.pack(expand=True, fill="x")
+            self.scrollbar_x.pack(side="bottom", fill="x")
+            self.scrollbar_y.pack(side="right", fill="y")
+            '''except: 
+                self.except_error_label.place(x=30, y=250)'''
         
         on_option_change()
         solve_button = tk.Button(self, text="Giải", command=solve)
@@ -365,6 +380,8 @@ class secant_frame(equationMethodBaseFrame):
             self.error_input_label.place_forget()
             self.except_error_label.place_forget()
             self.notice_label.place_forget()
+            self.x_0_d_label.place_forget()
+            self.de0_label.place_forget()
             self.m1_M1_label.place_forget()
             self.result_label.place_forget()
             self.tree.destroy()
@@ -373,6 +390,141 @@ class secant_frame(equationMethodBaseFrame):
 
         reset_button = tk.Button(self, text="Reset", command=reset_fields)
         reset_button.place(x=20, y =560)
+class newton1_frame(equationMethodBaseFrame):
+    def __init__(self, root, frame_manager):
+        super().__init__(root, frame_manager, "Phương pháp tiếp tuyến")
 
+        self.options = ["Sai số tuyệt đối", "Sai số tương đối", "Cho trước số lần lặp"]
+        self.option_menu.configure(values=self.options)
+        self.selected_option.set("Sai số tuyệt đối")
         
+        self.stop_conditions = ["|xₙ - x*| ≤ |f(xₙ)| / m₁", "|xₙ - x*| ≤ M₂ |xₙ - xₙ₋₁|² / 2m₁ "]
+        self.selected_stop_condition = ctk.StringVar()
+        self.selected_stop_condition.set("|xₙ - x*| ≤ |f(xₙ)| / m₁")
+        self.stop_condition_label = ctk.CTkLabel(self,text = "Điều kiện dừng: ")
+        self.stop_condition_menu = ctk.CTkOptionMenu(self, values=self.stop_conditions,
+                                                     variable=self.selected_stop_condition,
+                                                     fg_color="white",
+                                                     text_color="black",
+                                                     button_color="lightblue",
+                                                     button_hover_color="skyblue",
+                                                     width=120)
+        self.m1_M2_label = ctk.CTkLabel(self)
+        self.x_0_label = ctk.CTkLabel(self)
+        self.de0_label = ctk.CTkLabel(self)
         
+        self.title_label.pack(pady=20)
+        self.f_label.place(x=30, y=70)
+        self.f_input.place(x=80, y=70)
+        self.a_label.place(x=510, y=70)
+        self.a_input.place(x=550, y=70)
+        self.b_label.place(x=630, y=70)
+        self.b_input.place(x=670, y=70)
+
+        self.options_label.place(x=30, y=120)
+        self.option_menu.place(x=80, y=120)
+        self.eps_label.place(x=260, y=120)
+        self.option_input.place(x=300, y=120)
+        
+        self.stop_condition_label.place(x=443, y =120)
+        self.stop_condition_menu.place(x=550, y =120)
+
+        def on_option_change(*args):
+            self.option_input.delete(0, "end")
+
+            self.eps_label.place_forget()
+            self.delta_label.place_forget()
+            self.n_label.place_forget()
+            self.stop_condition_menu.place_forget()
+            self.stop_condition_label.place_forget()
+
+            if self.selected_option.get() == "Sai số tuyệt đối":
+                self.eps_label.place(x=260, y=120)
+                self.stop_condition_menu.place(x=550, y =120)
+                self.stop_condition_label.place(x=443, y=120)
+            elif self.selected_option.get() == "Sai số tương đối":
+                self.delta_label.place(x=260, y=120)
+                self.stop_condition_menu.place(x=550, y =120)
+                self.stop_condition_label.place(x=443, y=120)
+            else:
+                self.n_label.place(x=260, y=120)
+            self.option_input.place(x=300, y=120)
+        self.selected_option.trace("w", on_option_change)
+        on_option_change()
+        
+        def solve(*args):
+            self.error_input_label.place_forget()
+            self.except_error_label.place_forget()
+            self.notice_label.place_forget()
+            self.m1_M2_label.place_forget()
+            self.x_0_label.place_forget()
+            self.de0_label.place_forget()
+            self.result_label.place_forget()
+            self.tree.destroy()
+            self.scrollbar_x.destroy()
+            self.scrollbar_y.destroy()
+
+
+            expr = sympify(self.f_str.get())
+            a = sympify(self.a_str.get())
+            b = sympify(self.b_str.get())
+            option = self.selected_option.get()
+            option_num = sympify(self.option_num_input.get())
+            stop_condition = self.selected_stop_condition.get()
+
+            if (a >= b or expr.subs("x",a)*expr.subs("x",b)>0 
+            or option_num<=0 or (option == "Cho trước số lần lặp" and option_num!=int(option_num))):
+                self.error_input_label.place(x=30, y=250)
+                return
+            uu = newton1_oop(a, b, option, option_num, stop_condition, expr)
+            de_0, x_0, m1, M2, df, notice, result = uu.Solve()
+            df = df.apply(lambda col: col.map(lambda x: float(x)))
+                
+            if option == "Sai số tuyệt đối": 
+                self.m1_M2_label = ctk.CTkLabel(self, text=f"Giá trị các hệ số : m₁ = {m1}, M₂ = {M2}.")
+                self.x_0_label = ctk.CTkLabel(self, text=f"x_0 = {x_0}")
+                self.de0_label =  ctk.CTkLabel(self, text=f"Điều kiện dừng: eps_0 = {de_0}.")
+            if option == "Sai số tương đối": 
+                self.m1_M2_label = ctk.CTkLabel(self, text=f"Giá trị các hệ số : m₁ = {m1}, M₂ = {M2}.")
+                self.x_0_label = ctk.CTkLabel(self, text=f"x_0 = {x_0}.")
+                self.de0_label =  ctk.CTkLabel(self, text=f"Điều kiện dừng: delta_0 = {de_0}.")
+            if option == "Cho trước số lần lặp": 
+                self.m1_M2_label = ctk.CTkLabel(self, text=f"Giá trị các hệ số : m₁ = {m1}, M₂ = {M2}.")
+                self.x_0_label = ctk.CTkLabel(self, text=f"x_0 = {x_0}.")
+            self.notice_label = ctk.CTkLabel(self, text=f"Phương pháp tiếp tuyến kết thúc sau {notice} lần lặp")
+            self.result_label = ctk.CTkLabel(self, text=f"Nghiệm x = {float(result)}.")
+            self.tree, self.scrollbar_x, self.scrollbar_y = dataframe_to_treeview(df, self)
+
+            self.m1_M2_label.place(x=30, y=200)
+            self.x_0_label.place(x=30, y=225)
+            if option!="Cho trước số lần lặp": self.de0_label.place(x=30, y=250)
+            self.notice_label.place(x=30, y=275)
+            self.result_label.place(x=30, y=300)
+            self.tree.pack(expand=True, fill="x")
+            self.scrollbar_x.pack(side="bottom", fill="x")
+            self.scrollbar_y.pack(side="right", fill="y")
+            '''except: 
+                self.except_error_label.place(x=30, y=250)'''
+        
+        on_option_change()
+        solve_button = tk.Button(self, text="Giải", command=solve)
+        solve_button.pack(pady=100)
+        
+        def reset_fields():
+            self.f_str.set("")
+            self.a_str.set("")
+            self.b_str.set("")
+            self.option_num_input.set("")
+            self.error_input_label.place_forget()
+            self.except_error_label.place_forget()
+            self.notice_label.place_forget()
+            self.m1_M2_label.place_forget()
+            self.x_0_label.place_forget()
+            self.de0_label.place_forget()
+            self.result_label.place_forget()
+            self.tree.destroy()
+            self.scrollbar_x.destroy()
+            self.scrollbar_y.destroy()
+
+        reset_button = tk.Button(self, text="Reset", command=reset_fields)
+        reset_button.place(x=20, y =560)

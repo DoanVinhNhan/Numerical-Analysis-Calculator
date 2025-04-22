@@ -3,8 +3,9 @@ from tkinter import ttk
 import customtkinter as ctk
 from sympy import *
 import pandas as pd
+import numpy as np
 from PIL import Image
-from equationMethods import bisection_oop, secant_oop, newton1_oop
+from equationMethods import bisection_oop, secant_oop, newton1_oop, single_loop1_oop
 
 # Function to convert DataFrame to Treeview
 def dataframe_to_treeview(df, root):
@@ -91,7 +92,8 @@ class equation_frame(baseFrame):
                       frame_manager.switch_frame("secant_frame"), width=400, height=60).place(x=200, y=200)
         ctk.CTkButton(self, text="Phương pháp tiếp tuyến",command = lambda:
                       frame_manager.switch_frame("newton1_frame"), width=400, height=60).place(x=200, y=300)
-        ctk.CTkButton(self, text="Phương pháp lặp đơn", width=400, height=60).place(x=200, y=400)
+        ctk.CTkButton(self, text="Phương pháp lặp đơn",command = lambda:
+                      frame_manager.switch_frame("single_loop1_frame"), width=400, height=60).place(x=200, y=400)
 class nonlinear_system_frame(baseFrame):
     def __init__(self, root, frame_manager):
         super().__init__(root, frame_manager)
@@ -528,3 +530,120 @@ class newton1_frame(equationMethodBaseFrame):
 
         reset_button = tk.Button(self, text="Reset", command=reset_fields)
         reset_button.place(x=20, y =560)
+class single_loop1_frame(equationMethodBaseFrame):
+    def __init__(self, root, frame_manager):
+        super().__init__(root, frame_manager, "Phương pháp lặp đơn")
+        self.f_label = ctk.CTkLabel(self, text = "φ(x) = ")
+        self.qde_label = ctk.CTkLabel(self)
+        self.not_in = ctk.CTkLabel(self, text = "Miền giá trị không đóng!", text_color = "red")
+        self.x_0_str = ctk.StringVar()
+        self.x_0_label =ctk.CTkLabel(self,text="x0 = ", font = ("Arial",16))
+        self.x_0_intput=ctk.CTkEntry(self,width=60, height=30, textvariable=self.x_0_str)
+
+        self.options = ["Sai số tuyệt đối", "Sai số tương đối", "Cho trước số lần lặp"]
+        self.option_menu.configure(values=self.options)
+        self.selected_option.set("Sai số tuyệt đối")
+
+        self.x_0_label.place(x=510, y =120)
+        self.x_0_intput.place(x=550, y =120)
+        self.title_label.pack(pady=20)
+        self.f_label.place(x=30, y=70)
+        self.f_input.place(x=80, y=70)
+        self.a_label.place(x=510, y=70)
+        self.a_input.place(x=550, y=70)
+        self.b_label.place(x=630, y=70)
+        self.b_input.place(x=670, y=70)
+
+        self.options_label.place(x=30, y=120)
+        self.option_menu.place(x=80, y=120)
+        self.eps_label.place(x=260, y=120)
+        self.option_input.place(x=300, y=120)
+
+        def on_option_change(*args):
+            self.option_input.delete(0, "end")
+
+            self.eps_label.place_forget()
+            self.delta_label.place_forget()
+            self.n_label.place_forget()
+
+            if self.selected_option.get() == "Sai số tuyệt đối":
+                self.eps_label.place(x=260, y=120)
+            elif self.selected_option.get() == "Sai số tương đối":
+                self.delta_label.place(x=260, y=120)
+            else:
+                self.n_label.place(x=260, y=120)
+                
+            self.option_input.place(x=300, y=120)
+        self.selected_option.trace("w", on_option_change)
+        on_option_change()
+        
+        def solve(*args):
+            self.error_input_label.place_forget()
+            self.except_error_label.place_forget()
+            self.notice_label.place_forget()
+            self.result_label.place_forget()
+            self.qde_label.place_forget()
+            self.not_in.place_forget()
+            self.tree.destroy()
+            self.scrollbar_x.destroy()
+            self.scrollbar_y.destroy()
+            try:
+                expr = sympify(self.f_str.get())
+                a = sympify(self.a_str.get())
+                b = sympify(self.b_str.get())
+                x_0 = sympify(self.x_0_str.get())
+                option = self.selected_option.get()
+                option_num = sympify(self.option_num_input.get())
+            
+                if (a >= b or (option == "Cho trước số lần lặp" and (option_num != int(option_num))) or option_num <= 0 or x_0<a or x_0 >b):
+                    self.error_input_label.place(x=30, y=250)
+                    return
+                for x in np.linspace(float(a),float(b),30):
+                    if expr.subs("x", x) < a or expr.subs("x", x) >b:
+                        self.not_in.place(x=30, y=250)
+                        return
+                uu = single_loop1_oop(a, b, x_0, option, option_num, expr)
+                df, q, de0, notice, result = uu.Solve()
+                df = df.apply(lambda col: col.map(lambda x: float(x)))
+    
+                if option == "Sai số tuyệt đối":
+                    self.qde_label = ctk.CTkLabel(self, text=f"Giá trị: max|φ'(x)| = {float(q)}. Điều kiện dừng: eps_0 = {de0}")
+                else:
+                    self.qde_label = ctk.CTkLabel(self, text=f"Giá trị: max|φ'(x)| = {float(q)}. Điều kiện dừng: delta_0 = {de0}")
+                
+                self.notice_label = ctk.CTkLabel(self, text=f"Phương pháp lặp đơn kết thúc sau {notice} lần lặp")
+                self.result_label = ctk.CTkLabel(self, text=f"Nghiệm x = {float(result)}")
+                self.tree, self.scrollbar_x, self.scrollbar_y = dataframe_to_treeview(df, self)
+    
+                self.qde_label.place(x=30, y =220)
+                self.notice_label.place(x=30, y=250)
+                self.result_label.place(x=30, y=280)
+                self.tree.pack(expand=True, fill="x")
+                self.scrollbar_x.pack(side="bottom", fill="x")
+                self.scrollbar_y.pack(side="right", fill="y")
+            except:
+                self.except_error_label.place(x=30, y=250)
+        
+        on_option_change()
+        solve_button = tk.Button(self, text="Giải", command=solve)
+        solve_button.pack(pady=100)
+        
+        def reset_fields():
+            self.f_str.set("")
+            self.a_str.set("")
+            self.b_str.set("")
+            self.x_0_str.set("")
+            self.option_num_input.set("")
+            self.error_input_label.place_forget()
+            self.except_error_label.place_forget()
+            self.qde_label.place_forget()
+            self.not_in.place_forget()
+            self.notice_label.place_forget()
+            self.result_label.place_forget()
+            self.tree.destroy()
+            self.scrollbar_x.destroy()
+            self.scrollbar_y.destroy()
+
+        reset_button = tk.Button(self, text="Reset", command=reset_fields)
+        reset_button.place(x=20, y =560)
+      

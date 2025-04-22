@@ -350,3 +350,47 @@ class newton1_oop:
                 return self.__newton1MethodDelta1()
             else:
                 return self.__newton1MethodDelta2()        
+class single_loop1_oop():
+    def __init__(self,a_0,b_0,x_0,option,option_num,expr):
+        x = symbols("x")
+        self.phi = lambdify(x, expr, "math");
+        self.phi1 = lambdify(x, expr.diff(x), "math")
+        self.option = option
+        self.option_num = option_num
+        self.q = abs(max([self.phi1(a_0), self.phi1(b_0)],key=abs))
+        self.x_0 = x_0
+        
+    def __single_loop1MethodEpsilon(self):
+        notice =0
+        eps_0 = self.option_num*(1-self.q)/self.q
+        df = pd.DataFrame([{"x":self.x_0}])
+        x_run = self.x_0
+        while True:
+            notice+=1
+            x_prev = x_run
+            x_run = self.phi(x_run)
+            check = abs(x_run-x_prev)
+            new_row = pd.DataFrame([{"x":x_run,"|x-x_prev|":check}])
+            df = pd.concat([df,new_row],ignore_index=True)
+            if check<eps_0: break
+        return df, self.q, eps_0, notice, x_run
+        
+    def __single_loop1MethodDelta(self):
+        notice =0
+        delta_0 = self.option_num*(1-self.q)/self.q
+        df = pd.DataFrame([{"x":self.x_0}])
+        x_run = self.x_0
+        while True:
+            notice+=1
+            x_prev = x_run
+            x_run = self.phi(x_run)
+            check = abs(x_run-x_prev)/abs(x_run)
+            new_row = pd.DataFrame([{"x_n":x_run,"|x_n-x_n-1| / |x_n|":check}])
+            df = pd.concat([df,new_row],ignore_index=True)
+            if check<delta_0: break
+        return df, self.q, delta_0, notice, x_run   
+    
+    def Solve(self):
+        if self.option == "Sai số tuyệt đối":
+            return self.__single_loop1MethodEpsilon()
+        else: return self.__single_loop1MethodDelta()

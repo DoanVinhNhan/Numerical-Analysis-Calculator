@@ -4,7 +4,6 @@ import customtkinter as ctk
 from sympy import *
 import pandas as pd
 import numpy as np
-from PIL import Image
 from equationMethods import bisection_oop, secant_oop, newton1_oop, single_loop1_oop
 
 # Function to convert DataFrame to Treeview
@@ -101,10 +100,10 @@ class nonlinear_system_frame(baseFrame):
         label = ctk.CTkLabel(self, text="Giải hệ phi tuyến", font=ctk.CTkFont(size=30, weight="bold"))
         label.pack(pady=20)
 
-        ctk.CTkButton(self, text="Phương pháp Newton Raphson",command = lambda:
-                      frame_manager.switch_frame("newton_raphson_frame"), width=400, height=60).place(x=200, y=100)
+        ctk.CTkButton(self, text="Phương pháp Newton Raphson", width=400, height=60).place(x=200, y=100)
         ctk.CTkButton(self, text="Phương pháp Newton Modified", width=400, height=60).place(x=200, y=200)
-        ctk.CTkButton(self, text="Phương pháp lặp đơn", width=400, height=60).place(x=200, y=300)
+        ctk.CTkButton(self, text="Phương pháp lặp đơn",command = lambda:
+                      frame_manager.switch_frame("single_loop_frame"), width=400, height=60).place(x=200, y=300)
 class matrix_frame(baseFrame):
     def __init__(self, root, frame_manager):
         super().__init__(root, frame_manager)
@@ -129,11 +128,22 @@ class equationMethodBaseFrame(baseFrame):
         self.option_num_input = ctk.StringVar()
         self.options = []
 
+        self.option_input = ctk.CTkEntry(self, width=60, height=30, textvariable=self.option_num_input)
+        self.option_menu = ctk.CTkOptionMenu(self, values=self.options, variable=self.selected_option,
+                                        fg_color="white",
+                                        text_color="black",
+                                        button_color="lightblue",
+                                        button_hover_color="skyblue")
+
         self.title_label = ctk.CTkLabel(self, text = title, font=ctk.CTkFont(size=30, weight="bold"))
         self.options_label = ctk.CTkLabel(self, text="Option:")
         self.eps_label = ctk.CTkLabel(self, text="\u03B5 = ", font=("Arial", 16))
         self.delta_label = ctk.CTkLabel(self, text="\u03B4 = ", font=("Arial", 16))
         self.n_label = ctk.CTkLabel(self, text="n = ", font=("Arial", 16))
+
+        self.options = ["Sai số tuyệt đối", "Sai số tương đối", "Cho trước số lần lặp"]
+        self.option_menu.configure(values=self.options)
+        self.selected_option.set("Sai số tuyệt đối")
 
         self.f_label = ctk.CTkLabel(self, text="f(x) = ", font=("Arial", 16))
         self.a_label = ctk.CTkLabel(self, text="a = ", font=("Arial", 16))
@@ -142,13 +152,6 @@ class equationMethodBaseFrame(baseFrame):
         self.f_input = ctk.CTkEntry(self, width=400, height=30, textvariable=self.f_str)
         self.a_input = ctk.CTkEntry(self, width=60, height=30, textvariable=self.a_str)
         self.b_input = ctk.CTkEntry(self, width=60, height=30, textvariable=self.b_str)
-        self.option_input = ctk.CTkEntry(self, width=60, height=30, textvariable=self.option_num_input)
-
-        self.option_menu = ctk.CTkOptionMenu(self, values=self.options, variable=self.selected_option,
-                                        fg_color="white",
-                                        text_color="black",
-                                        button_color="lightblue",
-                                        button_hover_color="skyblue")
 
         self.notice_label = ctk.CTkLabel(self)
         self.result_label = ctk.CTkLabel(self)
@@ -169,7 +172,6 @@ class equationMethodBaseFrame(baseFrame):
         self.eps_label.place_forget()
         self.delta_label.place_forget()
         self.n_label.place_forget()
-        self.option_input.place_forget()
 
         selected = self.selected_option.get()
         if selected == "Sai số tuyệt đối":
@@ -222,11 +224,6 @@ class equationMethodBaseFrame(baseFrame):
 class bisection_frame(equationMethodBaseFrame):
     def __init__(self, root, frame_manager):
         super().__init__(root, frame_manager, "Phương pháp chia đôi")
-
-        self.options = ["Sai số tuyệt đối", "Sai số tương đối", "Cho trước số lần lặp"]
-        self.option_menu.configure(values=self.options)
-        self.selected_option.set("Sai số tuyệt đối")
-        
         self.putwidget()
         
         def solve(*args):
@@ -239,7 +236,7 @@ class bisection_frame(equationMethodBaseFrame):
             self.scrollbar_y.destroy()
             try:
                 x = symbols("x")
-                expr = self.f_str.get()
+                expr = sympify(self.f_str.get())
                 f = lambdify(x, expr, 'math')
                 a = sympify(self.a_str.get())
                 b = sympify(self.b_str.get())
@@ -441,10 +438,6 @@ class single_loop1_frame(equationMethodBaseFrame):
         self.x_0_label =ctk.CTkLabel(self,text="x0 = ", font = ("Arial",16))
         self.x_0_intput=ctk.CTkEntry(self,width=60, height=30, textvariable=self.x_0_str)
 
-        self.options = ["Sai số tuyệt đối", "Sai số tương đối", "Cho trước số lần lặp"]
-        self.option_menu.configure(values=self.options)
-        self.selected_option.set("Sai số tuyệt đối")
-
         self.putwidget()
         self.x_0_label.place(x=510, y =120)
         self.x_0_intput.place(x=550, y =120)
@@ -504,83 +497,223 @@ class nonLinearSystemMethodsBaseFrame(baseFrame):
     def __init__(self, root, frame_manager, title):
         super().__init__(root, frame_manager)
         self.title_label = ctk.CTkLabel(self, text = title, font=ctk.CTkFont(size=30, weight="bold"))
-        self.setup_navigation_buttons("nonlinear_system_frame")
-        self.f_str = [ctk.StringVar() for _ in range(5)]
-        self.x_left_str = [ctk.StringVar() for _ in range(5)]
-        self.x_right_str = [ctk.StringVar() for _ in range(5)]
-
-        self.f_label = []
-        self.x_left_label = []
-        self.x_right_label = []
-        self.f_input = []
-        self.x_left_input = []
-        self.x_right_input = []
-
-        self.result_frame = ctk.CTkScrollableFrame(
-            master=self,
-            height = 400
-        )
+        self.inner_frame = ctk.CTkScrollableFrame(self,fg_color="transparent")
+        self.input_frame = ctk.CTkFrame(self.inner_frame,fg_color="transparent")
+        self.number_funtion_frame = ctk.CTkFrame(self.inner_frame,fg_color="transparent")
+        self.x0_frame = ctk.CTkFrame(self.inner_frame,fg_color="transparent")
         
-        for i in range(5):
-            entry = ctk.CTkEntry(self, textvariable=self.f_str[i], width=400, height=25)
-            self.f_input.append(entry)
-            
-            left_entry = ctk.CTkEntry(self, width=60, height=25, textvariable=self.x_left_str[i])
-            self.x_left_input.append(left_entry)
-
-            right_entry = ctk.CTkEntry(self, width=60, height=25, textvariable=self.x_right_str[i])
-            self.x_right_input.append(right_entry)
-
-            f_label_i = ctk.CTkLabel(self, text = f"f_{i+1}(X) = ")
-            self.f_label.append(f_label_i)
-
-            left_label = ctk.CTkLabel(self, text = f"x{i+1}_left = ")
-            self.x_left_label.append(left_label)
-
-            right_label = ctk.CTkLabel(self, text = f"x{i+1}_right = ")
-            self.x_right_label.append(right_label)
-            
-    def putwidget(self,n):
-        for i in range(5):
-            self.f_input[i].place_forget()
-            self.f_label[i].place_forget()
-            
-            self.x_left_input[i].place_forget()
-            self.x_left_label[i].place_forget()
-            
-            self.x_right_input[i].place_forget()
-            self.x_right_label[i].place_forget()
-        for i in range(n):
-            self.f_input[i].place(x=80, y =110 + i*40)
-            self.f_label[i].place(x=15, y=110+i*40)
-            
-            self.x_left_input[i].place(x=565, y =110 + i*40)
-            self.x_left_label[i].place(x=490, y =110 +i*40)
-            
-            self.x_right_input[i].place(x=720, y =110 + i*40)
-            self.x_right_label[i].place(x=640, y =110 +i*40)
-        self.root.update_idletasks()
-
-class newton_raphson_frame(nonLinearSystemMethodsBaseFrame):
-    def __init__(self, root, frame_manager):
-        super().__init__(root, frame_manager, "Phương pháp Newton Raphson")
         self.number_funtion_str = ctk.StringVar(value="3")
-
-        self.number_funtion_label = ctk.CTkLabel(self, text = "Số phương trình:")
-        self.number_funtion_menu = ctk.CTkOptionMenu(self, values=["2","3","4","5"],
+        self.number_funtion_label = ctk.CTkLabel(self.number_funtion_frame, text = "Số phương trình:")
+        self.number_funtion_menu = ctk.CTkOptionMenu(self.number_funtion_frame, values=["2","3","4","5"],
                                                      variable=self.number_funtion_str,
-                                                     command=self._update_widgets_callback,
                                                      fg_color="white",
                                                      text_color="black",
                                                      button_color="lightblue",
                                                      button_hover_color="skyblue",
                                                      width=120, height = 30)
-        self.number_funtion_label.place(x=275, y =70)
-        self.number_funtion_menu.place(x=395, y =70)
-        self.title_label.pack(pady = 20)
+        self.number_funtion_label.grid(row = 0, column = 0)
+        self.number_funtion_menu.grid(row = 0, column = 1, padx = 10)
         
-        self._update_widgets_callback()
+        self.f_str = [ctk.StringVar() for _ in range(5)]
+        self.x_left_str = [ctk.StringVar() for _ in range(5)]
+        self.x_right_str = [ctk.StringVar() for _ in range(5)]
+        self.x0_str = [ctk.StringVar() for _ in range(5)]
+        self.option_num_input = ctk.StringVar()
+        self.selected_option = ctk.StringVar()
 
-    def _update_widgets_callback(self, choice=None):
-        num_functions = int(self.number_funtion_str.get())
-        self.putwidget(num_functions)
+        self.f_label = []
+        self.f_input = []
+        self.x_left_label = []
+        self.x_left_input = []
+        self.x_right_label = []
+        self.x_right_input = []
+        self.x0_label = ctk.CTkLabel(self.x0_frame, text = f"X_0 = ")
+        self.x0_input = []
+        
+        for i in range(5):
+            f_label_i = ctk.CTkLabel(self.input_frame, text = f"f{i+1}(X) = ")
+            self.f_label.append(f_label_i)
+            
+            f_input_i = ctk.CTkEntry(self.input_frame, textvariable=self.f_str[i], width=400, height=25)
+            self.f_input.append(f_input_i)
+            
+            x_left_label_i = ctk.CTkLabel(self.input_frame, text = f"x{i}_left = ")
+            self.x_left_label.append(x_left_label_i)
+            
+            x_left_input_i = ctk.CTkEntry(self.input_frame, textvariable=self.x_left_str[i],  width=60, height=25)
+            self.x_left_input.append(x_left_input_i)
+            
+            x_right_label_i = ctk.CTkLabel(self.input_frame, text = f"x{i}_right = ")
+            self.x_right_label.append(x_right_label_i)
+
+            x_right_input_i = ctk.CTkEntry(self.input_frame, textvariable=self.x_right_str[i],  width=60, height=25)
+            self.x_right_input.append(x_right_input_i)
+
+            x0_input_i = ctk.CTkEntry(self.x0_frame, textvariable=self.x0_str[i],  width=60, height=25)
+            self.x0_input.append(x0_input_i)
+
+        self.options = ["Sai số tuyệt đối", "Sai số tương đối", "Cho trước số lần lặp"]
+        self.options_label = ctk.CTkLabel(self.input_frame, text="Option:")
+        self.eps_label = ctk.CTkLabel(self.input_frame, text="\u03B5 = ", font=("Arial", 16))
+        self.delta_label = ctk.CTkLabel(self.input_frame, text="\u03B4 = ", font=("Arial", 16))
+        self.n_label = ctk.CTkLabel(self.input_frame, text="n = ", font=("Arial", 16))
+        self.option_input = ctk.CTkEntry(self.input_frame, width=60, height=25, textvariable=self.option_num_input)
+        self.option_menu = ctk.CTkOptionMenu(self.input_frame, values=self.options, variable=self.selected_option,
+                                        fg_color="white",
+                                        text_color="black",
+                                        button_color="lightblue",
+                                        button_hover_color="skyblue",
+                                        height=25)
+        self.selected_option.set("Sai số tuyệt đối")
+        
+    def on_option_change(self, *arg):
+        self.option_input.delete(0, "end")
+        self.eps_label.grid_forget()
+        self.delta_label.grid_forget()
+        self.n_label.grid_forget()
+
+        n = int(sympify(self.number_funtion_str.get()))
+        
+        selected = self.selected_option.get()
+        if selected == "Sai số tuyệt đối":
+            self.eps_label.grid(row=n, column = 2, padx=(10, 2), pady=5,sticky = 'e')
+        elif selected == "Sai số tương đối":
+            self.delta_label.grid(row=n, column = 2, padx=(10, 2), pady=5,sticky = 'e')
+        else:
+            self.n_label.grid(row=n, column = 2, padx=(10, 2), pady=5,sticky = 'e')
+        self.root.update_idletasks()
+    def reset_fields(self):
+        for i in range(5):
+            self.f_str[i].set("")
+            self.x_left_str[i].set("")
+            self.x_right_str[i].set("")
+        self.option_num_input.set("")
+        self.root.update_idletasks()               
+        
+class single_loop_frame(nonLinearSystemMethodsBaseFrame):
+    def __init__(self, root, frame_manager):
+        super().__init__(root, frame_manager, "Phương pháp lặp đơn")
+
+        
+        self.input_frame.columnconfigure(0, weight=0)
+        self.input_frame.columnconfigure(1, weight=4)
+        self.input_frame.columnconfigure(2, weight=0)
+        self.input_frame.columnconfigure(3, weight=1)
+        self.input_frame.columnconfigure(4, weight=0)
+        self.input_frame.columnconfigure(5, weight=1)
+
+        self.title_label.pack(pady=(20,0))
+        self.number_funtion_frame.pack(pady=10)
+        self.packinputwidget()
+        self.number_funtion_str.trace("w",self.packinputwidget)
+
+    def packinputwidget(self, *arg):
+        n = int(sympify(self.number_funtion_str.get()))
+        for i in range(n,5):
+            self.f_str[i].set("")
+            self.x_left_str[i].set("")
+            self.x_right_str[i].set("")
+            self.x0_str[i].set("")
+            self.f_label[i].grid_forget()
+            self.f_input[i].grid_forget()
+            self.x_left_label[i].grid_forget()
+            self.x_left_input[i].grid_forget()
+            self.x_right_label[i].grid_forget()
+            self.x_right_input[i].grid_forget()
+            self.x0_input[i].grid_forget()
+        for i in range(n):
+            self.f_label[i].grid(row=i, column=0, padx=(10, 2), pady=5, sticky='e')
+            self.f_input[i].grid(row=i, column=1, padx=2, pady=5, sticky='ew')
+            self.x_left_label[i].grid(row=i, column=2, padx=(10, 2), pady=5, sticky='e')
+            self.x_left_input[i].grid(row=i, column=3, padx=2, pady=5, sticky='ew')
+            self.x_right_label[i].grid(row=i, column=4, padx=(10, 2), pady=5, sticky='e')
+            self.x_right_input[i].grid(row=i, column=5, padx=(2, 10), pady=5, sticky='ew')
+        self.options_label.grid(row=n, column=0)
+        self.option_menu.grid(row=n, column = 1,sticky = 'ew')
+        self.eps_label.grid(row=n, column = 2, padx=(10, 2), pady=5,sticky = 'e')
+        self.option_input.grid(row=n, column = 3,padx=2, pady=5,sticky = 'ew')
+        self.input_frame.pack()
+        self.on_option_change()
+
+        self.x0_label.grid(row = 0, column = 0, sticky = 'ew')
+        for i in range(n):
+            self.x0_input[i].grid(row=0, column=i+1, padx=10, pady=5, sticky='ew')
+        self.x0_frame.pack()
+        
+        self.selected_option.trace("w", self.on_option_change)
+        self.reset_button = tk.Button(self, text="Reset", command=self.reset_fields)
+        self.reset_button.place(x=20, y =560)
+        self.setup_navigation_buttons("nonlinear_system_frame")
+
+        self.inner_frame.pack(fill = "both",expand=True)
+        
+        def solve(*args):
+            n = int(sympify(self.number_funtion_str.get()))
+            expr = [sympify(self.f_str[i].get()) for i in range(n)]
+            x_left = [sympify(self.x_left_str[i].get()) for i in range(n)]
+            x_right = [sympify(self.x_right_str[i].get()) for i in range(n)]
+            x0 = Matrix([[sympify(self.x0_str[i].get()) for i in range(n)]])
+            option = self.selected_option.get()
+            option_num = sympify(self.option_num_input.get())
+
+        solve_button = tk.Button(self.inner_frame,command = solve, text="Giải")
+        solve_button.pack()
+
+class newton_raphson_frame(nonLinearSystemMethodsBaseFrame):
+    def __init__(self, root, frame_manager):
+        super().__init__(root, frame_manager, "Phương pháp Newton Raphson")
+
+        self.x0_label = []
+        for i in range(5):
+            self.x0_input[i] = ctk.CTkEntry(self.input_frame, textvariable=self.x0_str[i],  width=60, height=25)
+            x0_label_i = ctk.CTkLabel(self.input_frame,text = f"x{i}_0 = ")
+            self.x0_label.append(x0_label_i)
+        
+        self.input_frame.columnconfigure(0, weight=0)
+        self.input_frame.columnconfigure(1, weight=4)
+        self.input_frame.columnconfigure(2, weight=0)
+        self.input_frame.columnconfigure(3, weight=1)
+
+        self.title_label.pack(pady=(20,0))
+        self.number_funtion_frame.pack(pady=10)
+        self.packinputwidget()
+        self.number_funtion_str.trace("w",self.packinputwidget)
+
+    def packinputwidget(self, *arg):
+        n = int(sympify(self.number_funtion_str.get()))
+        for i in range(n,5):
+            self.f_str[i].set("")
+            self.x0_str[i].set("")
+            self.f_label[i].grid_forget()
+            self.f_input[i].grid_forget()
+            self.x0_input[i].grid_forget()
+        for i in range(n):
+            self.f_label[i].grid(row=i, column=0, padx=(10, 2), pady=5, sticky='e')
+            self.f_input[i].grid(row=i, column=1, padx=2, pady=5, sticky='ew')
+            self.x0_label[i].grid(row=i, column=2, padx=(10, 2), pady=5, sticky='e')
+            self.x0_input[i].grid(row=i, column=3, padx=2, pady=5, sticky='ew')
+            
+        self.options_label.grid(row=n, column=0)
+        self.option_menu.grid(row=n, column = 1,sticky = 'ew')
+        self.eps_label.grid(row=n, column = 2, padx=(10, 2), pady=5,sticky = 'e')
+        self.option_input.grid(row=n, column = 3,padx=2, pady=5,sticky = 'ew')
+        self.input_frame.pack()
+        self.on_option_change()
+
+        
+        self.selected_option.trace("w", self.on_option_change)
+        self.reset_button = tk.Button(self, text="Reset", command=self.reset_fields)
+        self.reset_button.place(x=20, y =560)
+        self.setup_navigation_buttons("nonlinear_system_frame")
+
+        self.inner_frame.pack(fill = "both",expand=True)
+        
+        def solve(*args):
+            n = int(sympify(self.number_funtion_str.get()))
+            expr = [sympify(self.f_str[i].get()) for i in range(n)]
+            x0 = Matrix([[sympify(self.x0_str[i].get()) for i in range(n)]])
+            option = self.selected_option.get()
+            option_num = sympify(self.option_num_input.get())
+
+        solve_button = tk.Button(self.inner_frame,command = solve, text="Giải")
+        solve_button.pack()

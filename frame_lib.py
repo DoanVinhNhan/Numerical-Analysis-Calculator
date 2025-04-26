@@ -100,8 +100,10 @@ class nonlinear_system_frame(baseFrame):
         label = ctk.CTkLabel(self, text="Giải hệ phi tuyến", font=ctk.CTkFont(size=30, weight="bold"))
         label.pack(pady=20)
 
-        ctk.CTkButton(self, text="Phương pháp Newton Raphson", width=400, height=60).place(x=200, y=100)
-        ctk.CTkButton(self, text="Phương pháp Newton Modified", width=400, height=60).place(x=200, y=200)
+        ctk.CTkButton(self, text="Phương pháp Newton Raphson",command = lambda:
+                      frame_manager.switch_frame("newton_raphson_frame"), width=400, height=60).place(x=200, y=100)
+        ctk.CTkButton(self, text="Phương pháp Newton Modified",command = lambda:
+                      frame_manager.switch_frame("newton_modified_frame"), width=400, height=60).place(x=200, y=200)
         ctk.CTkButton(self, text="Phương pháp lặp đơn",command = lambda:
                       frame_manager.switch_frame("single_loop_frame"), width=400, height=60).place(x=200, y=300)
 class matrix_frame(baseFrame):
@@ -607,6 +609,18 @@ class single_loop_frame(nonLinearSystemMethodsBaseFrame):
         self.packinputwidget()
         self.number_funtion_str.trace("w",self.packinputwidget)
 
+        def solve(*args):
+            n = int(sympify(self.number_funtion_str.get()))
+            expr = [sympify(self.f_str[i].get()) for i in range(n)]
+            x_left = [sympify(self.x_left_str[i].get()) for i in range(n)]
+            x_right = [sympify(self.x_right_str[i].get()) for i in range(n)]
+            x0 = Matrix([[sympify(self.x0_str[i].get()) for i in range(n)]])
+            option = self.selected_option.get()
+            option_num = sympify(self.option_num_input.get())
+
+        solve_button = tk.Button(self.inner_frame,command = solve, text="Giải")
+        solve_button.pack()
+
     def packinputwidget(self, *arg):
         n = int(sympify(self.number_funtion_str.get()))
         for i in range(n,5):
@@ -647,18 +661,6 @@ class single_loop_frame(nonLinearSystemMethodsBaseFrame):
 
         self.inner_frame.pack(fill = "both",expand=True)
         
-        def solve(*args):
-            n = int(sympify(self.number_funtion_str.get()))
-            expr = [sympify(self.f_str[i].get()) for i in range(n)]
-            x_left = [sympify(self.x_left_str[i].get()) for i in range(n)]
-            x_right = [sympify(self.x_right_str[i].get()) for i in range(n)]
-            x0 = Matrix([[sympify(self.x0_str[i].get()) for i in range(n)]])
-            option = self.selected_option.get()
-            option_num = sympify(self.option_num_input.get())
-
-        solve_button = tk.Button(self.inner_frame,command = solve, text="Giải")
-        solve_button.pack()
-
 class newton_raphson_frame(nonLinearSystemMethodsBaseFrame):
     def __init__(self, root, frame_manager):
         super().__init__(root, frame_manager, "Phương pháp Newton Raphson")
@@ -678,6 +680,16 @@ class newton_raphson_frame(nonLinearSystemMethodsBaseFrame):
         self.number_funtion_frame.pack(pady=10)
         self.packinputwidget()
         self.number_funtion_str.trace("w",self.packinputwidget)
+        
+        def solve(*args):
+            n = int(sympify(self.number_funtion_str.get()))
+            expr = [sympify(self.f_str[i].get()) for i in range(n)]
+            x0 = Matrix([[sympify(self.x0_str[i].get()) for i in range(n)]])
+            option = self.selected_option.get()
+            option_num = sympify(self.option_num_input.get())
+
+        solve_button = tk.Button(self.inner_frame,command = solve, text="Giải")
+        solve_button.pack()
 
     def packinputwidget(self, *arg):
         n = int(sympify(self.number_funtion_str.get()))
@@ -686,6 +698,7 @@ class newton_raphson_frame(nonLinearSystemMethodsBaseFrame):
             self.x0_str[i].set("")
             self.f_label[i].grid_forget()
             self.f_input[i].grid_forget()
+            self.x0_label[i].grid_forget()
             self.x0_input[i].grid_forget()
         for i in range(n):
             self.f_label[i].grid(row=i, column=0, padx=(10, 2), pady=5, sticky='e')
@@ -708,6 +721,26 @@ class newton_raphson_frame(nonLinearSystemMethodsBaseFrame):
 
         self.inner_frame.pack(fill = "both",expand=True)
         
+class newton_modified_frame(nonLinearSystemMethodsBaseFrame):
+    def __init__(self, root, frame_manager):
+        super().__init__(root, frame_manager, "Phương pháp Newton Modified")
+
+        self.x0_label = []
+        for i in range(5):
+            self.x0_input[i] = ctk.CTkEntry(self.input_frame, textvariable=self.x0_str[i],  width=60, height=25)
+            x0_label_i = ctk.CTkLabel(self.input_frame,text = f"x{i}_0 = ")
+            self.x0_label.append(x0_label_i)
+        
+        self.input_frame.columnconfigure(0, weight=0)
+        self.input_frame.columnconfigure(1, weight=4)
+        self.input_frame.columnconfigure(2, weight=0)
+        self.input_frame.columnconfigure(3, weight=1)
+
+        self.title_label.pack(pady=(20,0))
+        self.number_funtion_frame.pack(pady=10)
+        self.packinputwidget()
+        self.number_funtion_str.trace("w",self.packinputwidget)
+        
         def solve(*args):
             n = int(sympify(self.number_funtion_str.get()))
             expr = [sympify(self.f_str[i].get()) for i in range(n)]
@@ -717,3 +750,34 @@ class newton_raphson_frame(nonLinearSystemMethodsBaseFrame):
 
         solve_button = tk.Button(self.inner_frame,command = solve, text="Giải")
         solve_button.pack()
+        
+    def packinputwidget(self, *arg):
+        n = int(sympify(self.number_funtion_str.get()))
+        for i in range(n,5):
+            self.f_str[i].set("")
+            self.x0_str[i].set("")
+            self.f_label[i].grid_forget()
+            self.f_input[i].grid_forget()
+            self.x0_label[i].grid_forget()
+            self.x0_input[i].grid_forget()
+        for i in range(n):
+            self.f_label[i].grid(row=i, column=0, padx=(10, 2), pady=5, sticky='e')
+            self.f_input[i].grid(row=i, column=1, padx=2, pady=5, sticky='ew')
+            self.x0_label[i].grid(row=i, column=2, padx=(10, 2), pady=5, sticky='e')
+            self.x0_input[i].grid(row=i, column=3, padx=2, pady=5, sticky='ew')
+            
+        self.options_label.grid(row=n, column=0)
+        self.option_menu.grid(row=n, column = 1,sticky = 'ew')
+        self.eps_label.grid(row=n, column = 2, padx=(10, 2), pady=5,sticky = 'e')
+        self.option_input.grid(row=n, column = 3,padx=2, pady=5,sticky = 'ew')
+        self.input_frame.pack()
+        self.on_option_change()
+
+        
+        self.selected_option.trace("w", self.on_option_change)
+        self.reset_button = tk.Button(self, text="Reset", command=self.reset_fields)
+        self.reset_button.place(x=20, y =560)
+        self.setup_navigation_buttons("nonlinear_system_frame")
+
+        self.inner_frame.pack(fill = "both",expand=True)
+        

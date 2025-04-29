@@ -5,6 +5,7 @@ from sympy import *
 import pandas as pd
 import numpy as np
 from equationMethods import bisection_oop, secant_oop, newton1_oop, single_loop1_oop
+from nonlinearSystemMethods import newton_raphson_oop, newton_modified_oop
 
 # Function to convert DataFrame to Treeview
 def dataframe_to_treeview(df, root):
@@ -25,6 +26,40 @@ def dataframe_to_treeview(df, root):
     tree.configure(xscrollcommand=scrollbar_x.set)
 
     return tree, scrollbar_x, scrollbar_y
+
+# Function to convert sympy matrix to frame
+def create_matrix_frame(parent, matrix, **label_options):
+
+    matrix_frame = ctk.CTkFrame(parent)
+
+    num_rows = matrix.rows
+    num_cols = matrix.cols
+
+    default_label_config = {
+        "fg_color": ("gray85", "gray15"),
+        "corner_radius": 5,
+        "anchor": "center",
+        "padx": 5,
+        "pady": 5
+    }
+    current_label_config = {**default_label_config, **label_options}
+
+    for i in range(num_rows):
+        for j in range(num_cols):
+            element_str = str(matrix[i, j])
+            label = ctk.CTkLabel(
+                matrix_frame,
+                text=element_str,
+                **current_label_config
+            )
+            label.grid(row=i, column=j, padx=5, pady=5, sticky="nsew")
+
+    for k in range(num_cols):
+        matrix_frame.grid_columnconfigure(k, weight=1, uniform="matrix_col")
+    for k in range(num_rows):
+        matrix_frame.grid_rowconfigure(k, weight=1, uniform="matrix_row")
+
+    return matrix_frame
 
 # Define Basic Frame class
 class baseFrame(tk.Frame):
@@ -158,7 +193,7 @@ class equationMethodBaseFrame(baseFrame):
         self.notice_label = ctk.CTkLabel(self)
         self.result_label = ctk.CTkLabel(self)
         self.except_error_label = ctk.CTkLabel(self, text="Lỗi!", text_color="red")
-        self.error_input_label = ctk.CTkLabel(self, text="Đầu vào không hợp lệ", text_color="red")
+        self.error_input_label = ctk.CTkLabel(self, text="Đầu vào không hợp lệ!", text_color="red")
         
         self.tree = ttk.Treeview(self)
         self.scrollbar_x = tk.Scrollbar(self)
@@ -499,10 +534,11 @@ class nonLinearSystemMethodsBaseFrame(baseFrame):
     def __init__(self, root, frame_manager, title):
         super().__init__(root, frame_manager)
         self.title_label = ctk.CTkLabel(self, text = title, font=ctk.CTkFont(size=30, weight="bold"))
-        self.inner_frame = ctk.CTkScrollableFrame(self,fg_color="transparent")
+        self.inner_frame = ctk.CTkScrollableFrame(self,fg_color="transparent", height = 490)
         self.input_frame = ctk.CTkFrame(self.inner_frame,fg_color="transparent")
         self.number_funtion_frame = ctk.CTkFrame(self.inner_frame,fg_color="transparent")
         self.x0_frame = ctk.CTkFrame(self.inner_frame,fg_color="transparent")
+        self.output_frame = ctk.CTkFrame(self.inner_frame, fg_color = "transparent")
         
         self.number_funtion_str = ctk.StringVar(value="3")
         self.number_funtion_label = ctk.CTkLabel(self.number_funtion_frame, text = "Số phương trình:")
@@ -536,7 +572,7 @@ class nonLinearSystemMethodsBaseFrame(baseFrame):
             f_label_i = ctk.CTkLabel(self.input_frame, text = f"f{i+1}(X) = ")
             self.f_label.append(f_label_i)
             
-            f_input_i = ctk.CTkEntry(self.input_frame, textvariable=self.f_str[i], width=400, height=25)
+            f_input_i = ctk.CTkEntry(self.input_frame, textvariable=self.f_str[i], width=500, height=25)
             self.f_input.append(f_input_i)
             
             x_left_label_i = ctk.CTkLabel(self.input_frame, text = f"x{i}_left = ")
@@ -567,7 +603,22 @@ class nonLinearSystemMethodsBaseFrame(baseFrame):
                                         button_hover_color="skyblue",
                                         height=25)
         self.selected_option.set("Sai số tuyệt đối")
-        
+
+        self.jacobi_notice = ctk.CTkLabel(self.output_frame)
+        self.jacobi_label = ctk.CTkLabel(self.output_frame)
+        self.jacobi0_notice = ctk.CTkLabel(self.output_frame)
+        self.jacobi0_label = ctk.CTkLabel(self.output_frame)
+        self.jacobi0inv_notice = ctk.CTkLabel(self.output_frame)
+        self.jacobi0inv_label = ctk.CTkLabel(self.output_frame)
+        self.notice_label = ctk.CTkLabel(self.output_frame)
+        self.result_label = ctk.CTkLabel(self.output_frame)
+        self.tree = ttk.Treeview(self.output_frame)
+        self.scrollbar_x = tk.Scrollbar(self.output_frame)
+        self.error_input_label = ctk.CTkLabel(self.output_frame,text = "Đầu vào không hợp lệ!", text_color = "red")
+        self.except_error_label = ctk.CTkLabel(self.output_frame, text = "Lỗi!", text_color = "red")
+        self.not_converge_notice = ctk.CTkLabel(self.output_frame, text = "Phương pháp Newton Modified không hội tụ!", text_color = "red")
+        self.not_invertible_notice = ctk.CTkLabel(self.output_frame, text = "Ma trận J(X0) không khả nghịch!", text_color = "red")
+
     def on_option_change(self, *arg):
         self.option_input.delete(0, "end")
         self.eps_label.grid_forget()
@@ -585,18 +636,212 @@ class nonLinearSystemMethodsBaseFrame(baseFrame):
             self.n_label.grid(row=n, column = 2, padx=(10, 2), pady=5,sticky = 'e')
         self.root.update_idletasks()
     def reset_fields(self):
+        self.not_invertible_notice.pack_forget()
+        self.not_converge_notice.pack_forget()
+        self.jacobi0_notice.pack_forget()
+        self.jacobi0_label.pack_forget()
+        self.jacobi0inv_notice.pack_forget()
+        self.jacobi0inv_label.pack_forget()
+        self.jacobi_notice.pack_forget()
+        self.notice_label.pack_forget()
+        self.jacobi_label.pack_forget()
+        self.result_label.pack_forget()
+        self.tree.pack_forget()
+        self.scrollbar_x.destroy()
+        self.error_input_label.pack_forget()
+        self.except_error_label.pack_forget()
+        self.output_frame.pack_forget()
         for i in range(5):
             self.f_str[i].set("")
             self.x_left_str[i].set("")
             self.x_right_str[i].set("")
+            self.x0_str[i].set("")
         self.option_num_input.set("")
         self.root.update_idletasks()               
+
+class newton_raphson_frame(nonLinearSystemMethodsBaseFrame):
+    def __init__(self, root, frame_manager):
+        super().__init__(root, frame_manager, "Phương pháp Newton Raphson")
+
+        self.x0_label = []
+        for i in range(5):
+            self.x0_input[i] = ctk.CTkEntry(self.input_frame, textvariable=self.x0_str[i],  width=60, height=25)
+            x0_label_i = ctk.CTkLabel(self.input_frame,text = f"x{i+1}_0 = ")
+            self.x0_label.append(x0_label_i)
+        
+        self.input_frame.columnconfigure(0, weight=0)
+        self.input_frame.columnconfigure(1, weight=6)
+        self.input_frame.columnconfigure(2, weight=0)
+        self.input_frame.columnconfigure(3, weight=1)
+
+        self.title_label.pack(pady=(20,0))
+        self.number_funtion_frame.pack(pady=10)
+        self.packinputwidget()
+        self.number_funtion_str.trace("w",self.packinputwidget)
+
+        solve_button = tk.Button(self.inner_frame,command = self.solve, text="Giải")
+        solve_button.pack()
+    
+    def solve(self,*args):
+        self.jacobi_notice.pack_forget()
+        self.notice_label.pack_forget()
+        self.jacobi_label.pack_forget()
+        self.result_label.pack_forget()
+        self.tree.pack_forget()
+        self.scrollbar_x.destroy()
+        self.error_input_label.pack_forget()
+        self.except_error_label.pack_forget()
+        self.output_frame.pack_forget()
+        try:
+            n = int(sympify(self.number_funtion_str.get()))
+            expr = Matrix([sympify(self.f_str[i].get()) for i in range(n)])
+            x0 = Matrix([sympify(self.x0_str[i].get()) for i in range(n)])
+            option = self.selected_option.get()
+            option_num = sympify(self.option_num_input.get())
+
+            if option == "Cho trước số lần lặp" and option_num != int(option_num):
+                self.error_input_label.pack(pady = 5,anchor = 'w')
+                self.output_frame.pack(padx=10, pady=10, fill="both", expand=True)
+                return
+            uu = newton_raphson_oop(n,x0,option,option_num,expr)
+            jacobi,notice,result,df = uu.Solve()
+    
+            df = df.apply(lambda col: col.map(lambda x: float(x)))
+            self.jacobi_notice = ctk.CTkLabel(self.output_frame,text="Ma trận Jacobi:")
+            self.jacobi_label = create_matrix_frame(self.output_frame,jacobi)
+            self.notice_label = ctk.CTkLabel(self.output_frame, text=f"Phương pháp Newton Raphson kết thúc sau {notice} lần lặp")
+            self.result_label = ctk.CTkLabel(self.output_frame, text=f"Nghiệm x = {list(result)}")
+            self.tree,self.scrollbar_x, _ = dataframe_to_treeview(df, self.output_frame)
+            self.tree.configure(height = notice)
+            
+            self.jacobi_notice.pack(pady=5,anchor="w")
+            self.jacobi_label.pack()
+            self.notice_label.pack(pady=5,anchor="w")
+            self.result_label.pack(pady=5,anchor="w")
+            self.tree.pack(expand=True, fill="both")
+            self.scrollbar_x.pack(side="bottom", fill="x")
+        except:
+            self.except_error_label.pack(pady=5,anchor = 'w')
+        self.output_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+    def packinputwidget(self, *arg):
+        n = int(sympify(self.number_funtion_str.get()))
+        for i in range(n,5):
+            self.f_str[i].set("")
+            self.x0_str[i].set("")
+            self.f_label[i].grid_forget()
+            self.f_input[i].grid_forget()
+            self.x0_label[i].grid_forget()
+            self.x0_input[i].grid_forget()
+        for i in range(n):
+            self.f_label[i].grid(row=i, column=0, padx=(10, 2), pady=5, sticky='e')
+            self.f_input[i].grid(row=i, column=1, padx=2, pady=5, sticky='ew')
+            self.x0_label[i].grid(row=i, column=2, padx=(10, 2), pady=5, sticky='e')
+            self.x0_input[i].grid(row=i, column=3, padx=2, pady=5, sticky='ew')
+            
+        self.options_label.grid(row=n, column=0)
+        self.option_menu.grid(row=n, column = 1,sticky = 'ew')
+        self.eps_label.grid(row=n, column = 2, padx=(10, 2), pady=5,sticky = 'e')
+        self.option_input.grid(row=n, column = 3,padx=2, pady=5,sticky = 'ew')
+        self.input_frame.pack()
+        self.on_option_change()
+
+        
+        self.selected_option.trace("w", self.on_option_change)
+        self.reset_button = tk.Button(self, text="Reset", command=self.reset_fields)
+        self.reset_button.place(x=20, y =560)
+        self.setup_navigation_buttons("nonlinear_system_frame")
+
+        self.inner_frame.pack(fill="x")
+        
+class newton_modified_frame(newton_raphson_frame):
+    def __init__(self, root, frame_manager):
+        super().__init__(root,frame_manager)
+        self.title_label.configure(text = "Phương pháp Newton Modified")
+    def solve(self,*args):
+        self.jacobi0_notice.pack_forget()
+        self.jacobi0_label.pack_forget()
+        self.jacobi0inv_notice.pack_forget()
+        self.jacobi0inv_label.pack_forget()
+        self.jacobi_notice.pack_forget()
+        self.notice_label.pack_forget()
+        self.jacobi_label.pack_forget()
+        self.result_label.pack_forget()
+        self.tree.pack_forget()
+        self.scrollbar_x.destroy()
+        self.error_input_label.pack_forget()
+        self.except_error_label.pack_forget()
+        self.output_frame.pack_forget()
+        self.not_converge_notice.pack_forget()
+        self.not_invertible_notice.pack_forget()
+        '''try:'''
+        n = int(sympify(self.number_funtion_str.get()))
+        expr = Matrix([sympify(self.f_str[i].get()) for i in range(n)])
+        x0 = Matrix([sympify(self.x0_str[i].get()) for i in range(n)])
+        option = self.selected_option.get()
+        option_num = sympify(self.option_num_input.get())
+
+        if option == "Cho trước số lần lặp" and option_num != int(option_num):
+            self.error_input_label.pack(pady = 5,anchor = 'w')
+            self.output_frame.pack(padx=10, pady=10, fill="both", expand=True)
+            return
+        uu = newton_modified_oop(n,x0,option,option_num,expr)
+        jacobi,jacobi0,jacobi0inv,notice,result,df, converge,invertible = uu.Solve()
+
+        self.jacobi_notice = ctk.CTkLabel(self.output_frame,text="Ma trận Jacobi:")
+        self.jacobi_label = create_matrix_frame(self.output_frame,jacobi)
+        self.jacobi0_notice = ctk.CTkLabel(self.output_frame, text = "Ma trận Jacobi tại X_0:")
+        self.jacobi0_label = create_matrix_frame(self.output_frame,jacobi0)
+        
+        if invertible ==0: 
+            self.jacobi_notice.pack(pady=5,anchor="w")
+            self.jacobi_label.pack()
+            self.jacobi0_notice.pack(pady=5,anchor="w")
+            self.jacobi0_label.pack()
+            self.not_invertible_notice.pack(pady=5,anchor="w")
+            self.output_frame.pack(padx=10, pady=10, fill="both", expand=True)
+            return
+
+        self.jacobi0inv_notice = ctk.CTkLabel(self.output_frame, text = "Ma trận Jacobi nghịch đảo tại X_0:")
+        self.jacobi0inv_label = create_matrix_frame(self.output_frame,jacobi0inv)
+
+        if converge == 0:
+            self.jacobi_notice.pack(pady=5,anchor="w")
+            self.jacobi_label.pack()
+            self.jacobi0_notice.pack(pady=5,anchor="w")
+            self.jacobi0_label.pack()
+            self.jacobi0inv_notice.pack(pady=5,anchor="w")
+            self.jacobi0inv_label.pack()
+            self.not_converge_notice.pack(pady=5,anchor="w")
+            self.output_frame.pack(padx=10, pady=10, fill="both", expand=True)
+            return
+
+        df = df.apply(lambda col: col.map(lambda x: float(x)))
+        self.notice_label = ctk.CTkLabel(self.output_frame, text=f"Phương pháp Newton Raphson kết thúc sau {notice} lần lặp")
+        self.result_label = ctk.CTkLabel(self.output_frame, text=f"Nghiệm x = {list(result)}")
+        self.tree,self.scrollbar_x, _ = dataframe_to_treeview(df, self.output_frame)
+        self.tree.configure(height = notice)
+        
+        self.jacobi_notice.pack(pady=5,anchor="w")
+        self.jacobi_label.pack()
+        self.jacobi0_notice.pack(pady=5,anchor="w")
+        self.jacobi0_label.pack()
+        self.jacobi0inv_notice.pack(pady=5,anchor="w")
+        self.jacobi0inv_label.pack()
+        self.notice_label.pack(pady=5,anchor="w")
+        self.result_label.pack(pady=5,anchor="w")
+        self.tree.pack(expand=True, fill="both")
+        self.scrollbar_x.pack(side="bottom", fill="x")
+        '''except:
+            self.except_error_label.pack(pady=5,anchor = 'w')'''
+        self.output_frame.pack(padx=10, pady=10, fill="both", expand=True)
         
 class single_loop_frame(nonLinearSystemMethodsBaseFrame):
     def __init__(self, root, frame_manager):
         super().__init__(root, frame_manager, "Phương pháp lặp đơn")
 
-        
+        for i in range(5):
+            self.f_label[i].configure(text = f"φ{i+1}(x) = ")
         self.input_frame.columnconfigure(0, weight=0)
         self.input_frame.columnconfigure(1, weight=4)
         self.input_frame.columnconfigure(2, weight=0)
@@ -660,124 +905,3 @@ class single_loop_frame(nonLinearSystemMethodsBaseFrame):
         self.setup_navigation_buttons("nonlinear_system_frame")
 
         self.inner_frame.pack(fill = "both",expand=True)
-        
-class newton_raphson_frame(nonLinearSystemMethodsBaseFrame):
-    def __init__(self, root, frame_manager):
-        super().__init__(root, frame_manager, "Phương pháp Newton Raphson")
-
-        self.x0_label = []
-        for i in range(5):
-            self.x0_input[i] = ctk.CTkEntry(self.input_frame, textvariable=self.x0_str[i],  width=60, height=25)
-            x0_label_i = ctk.CTkLabel(self.input_frame,text = f"x{i}_0 = ")
-            self.x0_label.append(x0_label_i)
-        
-        self.input_frame.columnconfigure(0, weight=0)
-        self.input_frame.columnconfigure(1, weight=4)
-        self.input_frame.columnconfigure(2, weight=0)
-        self.input_frame.columnconfigure(3, weight=1)
-
-        self.title_label.pack(pady=(20,0))
-        self.number_funtion_frame.pack(pady=10)
-        self.packinputwidget()
-        self.number_funtion_str.trace("w",self.packinputwidget)
-        
-        def solve(*args):
-            n = int(sympify(self.number_funtion_str.get()))
-            expr = [sympify(self.f_str[i].get()) for i in range(n)]
-            x0 = Matrix([[sympify(self.x0_str[i].get()) for i in range(n)]])
-            option = self.selected_option.get()
-            option_num = sympify(self.option_num_input.get())
-
-        solve_button = tk.Button(self.inner_frame,command = solve, text="Giải")
-        solve_button.pack()
-
-    def packinputwidget(self, *arg):
-        n = int(sympify(self.number_funtion_str.get()))
-        for i in range(n,5):
-            self.f_str[i].set("")
-            self.x0_str[i].set("")
-            self.f_label[i].grid_forget()
-            self.f_input[i].grid_forget()
-            self.x0_label[i].grid_forget()
-            self.x0_input[i].grid_forget()
-        for i in range(n):
-            self.f_label[i].grid(row=i, column=0, padx=(10, 2), pady=5, sticky='e')
-            self.f_input[i].grid(row=i, column=1, padx=2, pady=5, sticky='ew')
-            self.x0_label[i].grid(row=i, column=2, padx=(10, 2), pady=5, sticky='e')
-            self.x0_input[i].grid(row=i, column=3, padx=2, pady=5, sticky='ew')
-            
-        self.options_label.grid(row=n, column=0)
-        self.option_menu.grid(row=n, column = 1,sticky = 'ew')
-        self.eps_label.grid(row=n, column = 2, padx=(10, 2), pady=5,sticky = 'e')
-        self.option_input.grid(row=n, column = 3,padx=2, pady=5,sticky = 'ew')
-        self.input_frame.pack()
-        self.on_option_change()
-
-        
-        self.selected_option.trace("w", self.on_option_change)
-        self.reset_button = tk.Button(self, text="Reset", command=self.reset_fields)
-        self.reset_button.place(x=20, y =560)
-        self.setup_navigation_buttons("nonlinear_system_frame")
-
-        self.inner_frame.pack(fill = "both",expand=True)
-        
-class newton_modified_frame(nonLinearSystemMethodsBaseFrame):
-    def __init__(self, root, frame_manager):
-        super().__init__(root, frame_manager, "Phương pháp Newton Modified")
-
-        self.x0_label = []
-        for i in range(5):
-            self.x0_input[i] = ctk.CTkEntry(self.input_frame, textvariable=self.x0_str[i],  width=60, height=25)
-            x0_label_i = ctk.CTkLabel(self.input_frame,text = f"x{i}_0 = ")
-            self.x0_label.append(x0_label_i)
-        
-        self.input_frame.columnconfigure(0, weight=0)
-        self.input_frame.columnconfigure(1, weight=4)
-        self.input_frame.columnconfigure(2, weight=0)
-        self.input_frame.columnconfigure(3, weight=1)
-
-        self.title_label.pack(pady=(20,0))
-        self.number_funtion_frame.pack(pady=10)
-        self.packinputwidget()
-        self.number_funtion_str.trace("w",self.packinputwidget)
-        
-        def solve(*args):
-            n = int(sympify(self.number_funtion_str.get()))
-            expr = [sympify(self.f_str[i].get()) for i in range(n)]
-            x0 = Matrix([[sympify(self.x0_str[i].get()) for i in range(n)]])
-            option = self.selected_option.get()
-            option_num = sympify(self.option_num_input.get())
-
-        solve_button = tk.Button(self.inner_frame,command = solve, text="Giải")
-        solve_button.pack()
-        
-    def packinputwidget(self, *arg):
-        n = int(sympify(self.number_funtion_str.get()))
-        for i in range(n,5):
-            self.f_str[i].set("")
-            self.x0_str[i].set("")
-            self.f_label[i].grid_forget()
-            self.f_input[i].grid_forget()
-            self.x0_label[i].grid_forget()
-            self.x0_input[i].grid_forget()
-        for i in range(n):
-            self.f_label[i].grid(row=i, column=0, padx=(10, 2), pady=5, sticky='e')
-            self.f_input[i].grid(row=i, column=1, padx=2, pady=5, sticky='ew')
-            self.x0_label[i].grid(row=i, column=2, padx=(10, 2), pady=5, sticky='e')
-            self.x0_input[i].grid(row=i, column=3, padx=2, pady=5, sticky='ew')
-            
-        self.options_label.grid(row=n, column=0)
-        self.option_menu.grid(row=n, column = 1,sticky = 'ew')
-        self.eps_label.grid(row=n, column = 2, padx=(10, 2), pady=5,sticky = 'e')
-        self.option_input.grid(row=n, column = 3,padx=2, pady=5,sticky = 'ew')
-        self.input_frame.pack()
-        self.on_option_change()
-
-        
-        self.selected_option.trace("w", self.on_option_change)
-        self.reset_button = tk.Button(self, text="Reset", command=self.reset_fields)
-        self.reset_button.place(x=20, y =560)
-        self.setup_navigation_buttons("nonlinear_system_frame")
-
-        self.inner_frame.pack(fill = "both",expand=True)
-        
